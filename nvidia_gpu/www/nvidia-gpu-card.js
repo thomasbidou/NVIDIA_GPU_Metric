@@ -70,12 +70,17 @@
       this._root.className = "wrap";
       root.appendChild(this._root);
     }
-    set hass(v) { this._hass = v; this._render(); }
+    set hass(v) {
+      this._hass = v;
+      // Render once config is ready (Lovelace may set hass before or after
+      // setConfig, so re-render on whichever arrives second).
+      if (this._config) this._render();
+    }
     get hass() { return this._hass; }
     // Lovelace card API — the frontend calls these methods (not the .config property).
     setConfig(cfg) {
       this._config = cfg || { type: "custom:nvidia-gpu-card" };
-      this._render();
+      if (this._hass) this._render();
     }
     getConfig() { return this._config; }
     getCardSize() { return 5; }
