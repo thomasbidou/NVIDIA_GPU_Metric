@@ -72,7 +72,15 @@
     }
     set hass(v) { this._hass = v; this._render(); }
     get hass() { return this._hass; }
-    set config(c) { this._config = c || { type: "custom:nvidia-gpu-card" }; }
+    // Lovelace card API — the frontend calls these methods (not the .config property).
+    setConfig(cfg) {
+      this._config = cfg || { type: "custom:nvidia-gpu-card" };
+      this._render();
+    }
+    getConfig() { return this._config; }
+    getCardSize() { return 5; }
+    // Keep the .config property in sync (harmless if the frontend uses it).
+    set config(c) { this.setConfig(c); }
     get config() { return this._config; }
     static getStubConfig() { return { title: "Serveur — GPU & CPU" }; }
 
