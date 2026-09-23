@@ -51,7 +51,6 @@ class NvidiaGpuFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
             if data is None:
                 errors["base"] = "cannot_reach"
             else:
-                self.async_abort_entries_matching((host, port))
                 return self.async_create_entry(
                     title=data.get("name") or f"GPU {host}",
                     data={CONF_HOST: host, CONF_PORT: port},
