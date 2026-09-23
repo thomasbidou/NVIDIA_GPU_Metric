@@ -1,0 +1,49 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "NVIDIA GPU Stats",
+        "description": "Enter the address of the nvidia-gpu-stats daemon (the box that runs nvidia-smi).",
+        "data": {
+          "host": "Host (IP or hostname)",
+          "port": "Port"
+        }
+      }
+    },
+    "error": {
+      "cannot_reach": "Could not reach the nvidia-gpu-stats daemon at that address."
+    },
+    "abort": {
+      "already_configured": "This GPU is already configured."
+    }
+  },
+  "sensor": {
+    "gpu_utilization": {
+      "name": "GPU usage"
+    },
+    "memory_used_pct": {
+      "name": "Memory usage"
+    },
+    "memory_used_gib": {
+      "name": "Memory used"
+    },
+    "memory_total_gib": {
+      "name": "Memory total"
+    },
+    "power_draw_w": {
+      "name": "Power draw"
+    },
+    "power_limit_w": {
+      "name": "Power limit"
+    },
+    "power_usage_pct": {
+      "name": "Power usage"
+    },
+    "temperature_c": {
+      "name": "Temperature"
+    },
+    "fan_speed_pct": {
+      "name": "Fan speed"
+    }
+  }
+}

@@ -1,0 +1,76 @@
+# Lovelace cards for the NVIDIA GPU Stats integration.
+#
+# The integration creates a device named "NVIDIA RTX 6000 Ada Generation"
+# with 9 sensors. In the UI, pick them by NAME (the card editor's entity
+# dropdown lists them under that device). The exact entity id below is the
+# expected slug — if HA added a suffix (e.g. _2) just re-pick the right one.
+#
+# Ranges you asked for:
+#   - percent gauges: 0..100
+#   - temperature:     0..90
+#   - memory GiB:      0..48  (your total is 47.988 GiB)
+#   - power W:         0..300 (your power limit is 300 W)
+
+type: vertical-stack
+title: GPU — RTX 6000 Ada
+cards:
+  - type: gauge
+    name: GPU usage
+    entity: sensor.nvidia_rtx_6000_ada_generation_gpu_usage
+    min: 0
+    max: 100
+    unit: "%"
+    needle: true
+
+  - type: gauge
+    name: Memory usage
+    entity: sensor.nvidia_rtx_6000_ada_generation_memory_usage
+    min: 0
+    max: 100
+    unit: "%"
+    needle: true
+
+  - type: gauge
+    name: Memory (GiB)
+    entity: sensor.nvidia_rtx_6000_ada_generation_memory_used
+    min: 0
+    max: 48
+    unit: "GiB"
+    needle: true
+
+  - type: gauge
+    name: Power draw
+    entity: sensor.nvidia_rtx_6000_ada_generation_power_draw
+    min: 0
+    max: 300
+    unit: "W"
+    needle: true
+
+  - type: gauge
+    name: Power usage
+    entity: sensor.nvidia_rtx_6000_ada_generation_power_usage
+    min: 0
+    max: 100
+    unit: "%"
+    needle: true
+
+  - type: gauge
+    name: Temperature
+    entity: sensor.nvidia_rtx_6000_ada_generation_temperature
+    min: 0
+    max: 90
+    unit: "°C"
+    needle: true
+    thresholds:
+      - value: 70
+        color: orange
+      - value: 85
+        color: red
+
+  - type: gauge
+    name: Fan
+    entity: sensor.nvidia_rtx_6000_ada_generation_fan_speed
+    min: 0
+    max: 100
+    unit: "%"
+    needle: true

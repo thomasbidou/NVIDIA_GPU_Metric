@@ -1,0 +1,16 @@
+{
+    "domain": "nvidia_gpu",
+    "name": "NVIDIA GPU Stats",
+    "codeowners": [
+        "@thomasbidou"
+    ],
+    "config_flow": true,
+    "dependencies": [],
+    "documentation": "https://github.com/thomasbidou/nvidia-gpu-stats",
+    "iot_class": "local_polling",
+    "issue_tracker": "https://github.com/thomasbidou/nvidia-gpu-stats/issues",
+    "requirements": [
+        "aiohttp>=3.9.0"
+    ],
+    "version": "1.0.0"
+}
