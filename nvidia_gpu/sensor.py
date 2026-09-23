@@ -31,14 +31,12 @@ SENSOR_TYPES: tuple[SensorEntityDescription, ...] = (
     SensorEntityDescription(
         key="gpu_utilization_pct",
         translation_key="gpu_utilization",
-        device_class=SensorDeviceClass.PERCENTAGE,
         native_unit_of_measurement=PERCENTAGE,
         state_class=SensorStateClass.MEASUREMENT,
     ),
     SensorEntityDescription(
         key="memory_used_pct",
         translation_key="memory_used_pct",
-        device_class=SensorDeviceClass.PERCENTAGE,
         native_unit_of_measurement=PERCENTAGE,
         state_class=SensorStateClass.MEASUREMENT,
     ),
@@ -70,7 +68,6 @@ SENSOR_TYPES: tuple[SensorEntityDescription, ...] = (
     SensorEntityDescription(
         key="power_usage_pct",
         translation_key="power_usage_pct",
-        device_class=SensorDeviceClass.PERCENTAGE,
         native_unit_of_measurement=PERCENTAGE,
         state_class=SensorStateClass.MEASUREMENT,
     ),
@@ -84,7 +81,6 @@ SENSOR_TYPES: tuple[SensorEntityDescription, ...] = (
     SensorEntityDescription(
         key="fan_speed_pct",
         translation_key="fan_speed_pct",
-        device_class=SensorDeviceClass.PERCENTAGE,
         native_unit_of_measurement=PERCENTAGE,
         state_class=SensorStateClass.MEASUREMENT,
     ),
