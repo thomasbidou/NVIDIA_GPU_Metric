@@ -29,17 +29,22 @@ _EXPECTED_KEYS = (
 class NvidiaGpuCoordinator(DataUpdateCoordinator[dict]):
     """Polls the nvidia-gpu-stats HTTP daemon once per interval."""
 
-    def __init__(self, hass, host: str, port: int, scan_interval: timedelta) -> None:
+    def __init__(self, hass, entry_id, host: str, port: int, scan_interval: timedelta) -> None:
         super().__init__(
             hass,
             _LOGGER,
-            name=f"{DOMAIN}_{host}_{port}",
+            name=f"{DOMAIN}_{entry_id}",
             update_interval=scan_interval,
         )
         self._url = f"http://{host}:{port}/"
         self._timeout = aiohttp.ClientTimeout(total=10)
-        # Populated after the first successful refresh (the GPU product name).
+        # Stable, per-box identity (so multiple boxes / multiple GPUs never
+        # collide on entity unique_id or device identifier).
+        self.entry_id = entry_id
+        self.host = host
+        # Populated after the first successful refresh.
         self.device_name = "NVIDIA GPU"
+        self.box = None  # hostname reported by the daemon
 
     async def _async_update_data(self) -> dict:
         session = async_get_clientsession(self.hass)
@@ -60,4 +65,5 @@ class NvidiaGpuCoordinator(DataUpdateCoordinator[dict]):
                 _LOGGER.debug("missing field %s in payload", key)
         data.setdefault("name", "NVIDIA GPU")
         self.device_name = data["name"]
+        self.box = data.get("box")
         return data

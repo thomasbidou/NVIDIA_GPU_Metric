@@ -38,57 +38,57 @@ PARALLEL_UPDATES = 1
 GPU_SENSORS: tuple[SensorEntityDescription, ...] = (
     SensorEntityDescription(
         key="gpu_utilization_pct",
-        translation_key="gpu_usage",
+        name="Utilisation",
         native_unit_of_measurement=PERCENTAGE,
         state_class=SensorStateClass.MEASUREMENT,
     ),
     SensorEntityDescription(
         key="memory_used_pct",
-        translation_key="memory_usage",
+        name="Mémoire (%)",
         native_unit_of_measurement=PERCENTAGE,
         state_class=SensorStateClass.MEASUREMENT,
     ),
     SensorEntityDescription(
         key="memory_used_gib",
-        translation_key="memory_used",
+        name="Mémoire (GiB)",
         native_unit_of_measurement="GiB",
         state_class=SensorStateClass.MEASUREMENT,
     ),
     SensorEntityDescription(
         key="memory_total_gib",
-        translation_key="memory_total",
+        name="Mémoire totale",
         native_unit_of_measurement="GiB",
         state_class=SensorStateClass.TOTAL,
     ),
     SensorEntityDescription(
         key="power_draw_w",
-        translation_key="power_draw",
+        name="Consommation",
         device_class=SensorDeviceClass.POWER,
         native_unit_of_measurement=UnitOfPower.WATT,
         state_class=SensorStateClass.MEASUREMENT,
     ),
     SensorEntityDescription(
         key="power_limit_w",
-        translation_key="power_limit",
+        name="Plafond",
         device_class=SensorDeviceClass.POWER,
         native_unit_of_measurement=UnitOfPower.WATT,
     ),
     SensorEntityDescription(
         key="power_usage_pct",
-        translation_key="power_usage",
+        name="Puissance (%)",
         native_unit_of_measurement=PERCENTAGE,
         state_class=SensorStateClass.MEASUREMENT,
     ),
     SensorEntityDescription(
         key="temperature_c",
-        translation_key="temperature",
+        name="Température",
         device_class=SensorDeviceClass.TEMPERATURE,
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
         state_class=SensorStateClass.MEASUREMENT,
     ),
     SensorEntityDescription(
         key="fan_speed_pct",
-        translation_key="fan_speed",
+        name="Ventilateur",
         native_unit_of_measurement=PERCENTAGE,
         state_class=SensorStateClass.MEASUREMENT,
     ),
@@ -99,79 +99,116 @@ GPU_SENSORS: tuple[SensorEntityDescription, ...] = (
 SYSTEM_SENSORS: tuple[SensorEntityDescription, ...] = (
     SensorEntityDescription(
         key="usage_pct",
-        translation_key="cpu_usage",
+        name="Utilisation",
         native_unit_of_measurement=PERCENTAGE,
         state_class=SensorStateClass.MEASUREMENT,
     ),
     SensorEntityDescription(
         key="temperature_c",
-        translation_key="cpu_temperature",
+        name="Température",
         device_class=SensorDeviceClass.TEMPERATURE,
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
         state_class=SensorStateClass.MEASUREMENT,
     ),
     SensorEntityDescription(
         key="ram_used_pct",
-        translation_key="ram_usage",
+        name="RAM (%)",
         native_unit_of_measurement=PERCENTAGE,
         state_class=SensorStateClass.MEASUREMENT,
     ),
     SensorEntityDescription(
         key="ram_used_gib",
-        translation_key="ram_used",
+        name="RAM (GiB)",
         native_unit_of_measurement="GiB",
         state_class=SensorStateClass.MEASUREMENT,
     ),
     SensorEntityDescription(
         key="ram_total_gib",
-        translation_key="ram_total",
+        name="RAM totale",
         native_unit_of_measurement="GiB",
         state_class=SensorStateClass.TOTAL,
     ),
 )
 
 
-def _read(data: Optional[dict], source: tuple[str, ...], key: str):
+def _read(data: Optional[dict], source: tuple, key: str):
     node: object = data
     for part in source:
-        if not isinstance(node, dict):
+        if part is None:
             return None
-        node = node.get(part)
+        if isinstance(node, (list, tuple)):
+            if not isinstance(part, int) or part < 0 or part >= len(node):
+                return None
+            node = node[part]
+        elif isinstance(node, dict):
+            node = node.get(part)
+        else:
+            return None
     if not isinstance(node, dict):
         return None
     return node.get(key)
 
 
 async def async_setup_entry(hass: HomeAssistant, entry, async_add_entities) -> None:
-    """Set up GPU + system sensor entities from a config entry."""
+    """Set up GPU + system sensor entities from a config entry.
+
+    Identity scheme (collision-safe for multiple GPUs and multiple boxes):
+      - GPU sensors    -> unique_id  = "<gpu_uuid>_<key>",   device id (DOMAIN, uuid)
+      - system sensors -> unique_id  = "<box>_sys_<key>",    device id (DOMAIN, box)
+    Each GPU is its own device (keyed by its uuid), so N GPUs -> N devices.
+    """
     coordinator: NvidiaGpuCoordinator = hass.data[DOMAIN][entry.entry_id]
     data = coordinator.data or {}
+    box = coordinator.box
+
+    def _display(model: str) -> str:
+        # "<model> on <box>" when the box is known — keeps multiple boxes
+        # distinguishable in the UI.
+        return f"{model} on {box}" if box else model
+
+    # ---- GPUs (one device per card) ----
+    gpus = data.get("gpus")
+    if not gpus:
+        # v1 daemon / no "gpus" list: fall back to the top-level single GPU.
+        if any(k in data for k in ("gpu_utilization_pct", "memory_used_pct")):
+            gpus = [data]
+    else:
+        gpus = [g for g in gpus if isinstance(g, dict)]
+    if not gpus:
+        gpus = [data]
 
     entities: list[SensorEntity] = []
-
-    # ---- GPU device ----
-    gpu_name = coordinator.device_name or "NVIDIA GPU"
-    gpu_device = DeviceInfo(
-        identifiers={(DOMAIN, gpu_name)},
-        name=gpu_name,
-        manufacturer="NVIDIA",
-        model=gpu_name,
-    )
-    entities.extend(
-        StatSensor(coordinator, gpu_name, gpu_device, desc, source=())
-        for desc in GPU_SENSORS
-    )
+    for idx, gpu in enumerate(gpus):
+        uuid = gpu.get("uuid") or f"gpu{idx}"
+        model = gpu.get("name") or "NVIDIA GPU"
+        # Disambiguate identical models on one box: "RTX 6000 Ada (1)", "(2)".
+        display = _display(model) + (f" ({idx + 1})" if len(gpus) > 1 else "")
+        device = DeviceInfo(
+            identifiers={(DOMAIN, uuid)},
+            name=display,
+            manufacturer="NVIDIA",
+            model=model,
+        )
+        # source=("gpus", idx) reads this card's fields from the snapshot.
+        entities.extend(
+            StatSensor(coordinator, device, desc,
+                       source=("gpus", idx) if "gpus" in data else (),
+                       unique_id=f"{uuid}_{desc.key}")
+            for desc in GPU_SENSORS
+        )
 
     # ---- System (CPU/RAM) device ----
     cpu = data.get("cpu") or {}
     sys_name = cpu.get("name") or "CPU"
+    sys_id = box or coordinator.host
     sys_device = DeviceInfo(
-        identifiers={(DOMAIN, sys_name)},
-        name=sys_name,
+        identifiers={(DOMAIN, f"{sys_id}-system")},
+        name=_display(sys_name),
         model=sys_name,
     )
     entities.extend(
-        StatSensor(coordinator, sys_name, sys_device, desc, source=("cpu",))
+        StatSensor(coordinator, sys_device, desc, source=("cpu",),
+                   unique_id=f"{sys_id}_sys_{desc.key}")
         for desc in SYSTEM_SENSORS
     )
 
@@ -186,15 +223,19 @@ class StatSensor(CoordinatorEntity[NvidiaGpuCoordinator], SensorEntity):
     def __init__(
         self,
         coordinator: NvidiaGpuCoordinator,
-        device_name: str,
         device_info: DeviceInfo,
         description: SensorEntityDescription,
         source: tuple[str, ...],
+        unique_id: str,
     ) -> None:
         super().__init__(coordinator)
         self.entity_description = description
+        # Set the name as an ENTITY attribute (this HA build ignores the
+        # description-level name and translation_key; _attr_name is the
+        # proven pattern — cf. other custom integrations on this HA).
+        self._attr_name = description.name
         self._source = source
-        self._attr_unique_id = f"{device_name}_{description.key}"
+        self._attr_unique_id = unique_id
         self._attr_device_info = device_info
 
     @property

@@ -1,0 +1,64 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Stats GPU NVIDIA",
+        "description": "Indiquez l'adresse du démon nvidia-gpu-stats (la machine qui exécute nvidia-smi).",
+        "data": {
+          "host": "Hôte (IP ou nom de domaine)",
+          "port": "Port"
+        }
+      }
+    },
+    "error": {
+      "cannot_reach": "Impossible de joindre le démon nvidia-gpu-stats à cette adresse."
+    },
+    "abort": {
+      "already_configured": "Ce GPU est déjà configuré."
+    }
+  },
+  "sensor": {
+    "gpu_usage": {
+      "name": "Utilisation GPU"
+    },
+    "memory_usage": {
+      "name": "Mémoire utilisée"
+    },
+    "memory_used": {
+      "name": "Mémoire utilisée (GiB)"
+    },
+    "memory_total": {
+      "name": "Mémoire totale"
+    },
+    "power_draw": {
+      "name": "Consommation"
+    },
+    "power_limit": {
+      "name": "Plafond de puissance"
+    },
+    "power_usage": {
+      "name": "Puissance (%)"
+    },
+    "temperature": {
+      "name": "Température"
+    },
+    "fan_speed": {
+      "name": "Ventilateur"
+    },
+    "cpu_usage": {
+      "name": "Utilisation CPU"
+    },
+    "cpu_temperature": {
+      "name": "Température CPU"
+    },
+    "ram_usage": {
+      "name": "RAM utilisée"
+    },
+    "ram_used": {
+      "name": "RAM utilisée (GiB)"
+    },
+    "ram_total": {
+      "name": "RAM totale"
+    }
+  }
+}

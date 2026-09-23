@@ -24,7 +24,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     scan_interval: int = entry.data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
 
     coordinator = NvidiaGpuCoordinator(
-        hass, host, port, scan_interval=timedelta(seconds=scan_interval)
+        hass, entry.entry_id, host, port, scan_interval=timedelta(seconds=scan_interval)
     )
 
     await coordinator.async_refresh()
