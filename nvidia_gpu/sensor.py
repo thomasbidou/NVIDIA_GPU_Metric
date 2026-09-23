@@ -41,6 +41,8 @@ GPU_SENSORS: tuple[SensorEntityDescription, ...] = (
         name="Utilisation",
         native_unit_of_measurement=PERCENTAGE,
         state_class=SensorStateClass.MEASUREMENT,
+        # ``role`` is a stable, language-neutral handle for the bundled
+        # Lovelace card to identify the sensor (independent of display name).
     ),
     SensorEntityDescription(
         key="memory_used_pct",
@@ -241,3 +243,12 @@ class StatSensor(CoordinatorEntity[NvidiaGpuCoordinator], SensorEntity):
     @property
     def native_value(self):
         return _read(self.coordinator.data, self._source, self.entity_description.key)
+
+    @property
+    def extra_state_attributes(self):
+        # Expose the stable metric key so the bundled Lovelace card can
+        # identify each sensor by role (independent of the localized
+        # display name). The card groups by device_id first (GPU vs system),
+        # then matches on this key, so "temperature_c" means GPU temp on the
+        # GPU device and CPU temp on the system device.
+        return {"nvidia_gpu_key": self.entity_description.key}

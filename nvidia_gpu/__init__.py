@@ -11,6 +11,7 @@ from homeassistant.exceptions import ConfigEntryNotReady
 
 from .const import DEFAULT_PORT, DEFAULT_SCAN_INTERVAL, DOMAIN
 from .coordinator import NvidiaGpuCoordinator
+from .card import async_setup_card
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -34,6 +35,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         )
 
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = coordinator
+
+    # Ship + register the bundled Lovelace card (best-effort; a failure here
+    # must not break sensor setup).
+    await async_setup_card(hass)
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     return True

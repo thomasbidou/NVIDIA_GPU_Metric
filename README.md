@@ -19,8 +19,12 @@ the metrics as JSON over the LAN.
 
 ## What it creates
 
-One device (named after the GPU, e.g. **NVIDIA RTX 6000 Ada Generation**) with
-these sensors:
+One device **per GPU** (named after the GPU, e.g. **NVIDIA RTX 6000 Ada
+Generation on `ai`**) plus one **system** device (the box's CPU + RAM). Sensors
+and device identities are namespaced by **GPU UUID** and **box hostname**, so
+multiple GPUs, CPUs, or boxes never collide.
+
+Per GPU:
 
 | Sensor | Device class | Notes |
 |---|---|---|
@@ -33,6 +37,37 @@ these sensors:
 | Power usage | `percentage` | draw / limit |
 | Temperature | `temperature` (°C) | gauge 0–90 |
 | Fan speed | `percentage` | 0–100 |
+
+On the system device (the box's CPU + RAM):
+
+| Sensor | Device class | Notes |
+|---|---|---|
+| CPU usage | `percentage` | 0–100 |
+| CPU temperature | `temperature` (°C) | from the box's thermal sensor |
+| RAM used | `GiB` | value over total |
+| RAM total | `GiB` | your RAM ceiling |
+| RAM usage | `percentage` | used / total |
+
+### Bundled Lovelace card
+
+The integration ships a ready‑made Lovelace card —
+`custom:nvidia-gpu-card` — that shows the GPU and the CPU/RAM in **one card**,
+grouped by device, with SVG gauges. It's installed automatically alongside the
+integration (no manual resource needed) and **auto‑detects your sensors by
+their `nvidia_gpu_key` attribute**, so it works on any box and any number of
+GPUs without you hard‑coding entity IDs.
+
+To use it, drop this into a view:
+
+```yaml
+type: custom:nvidia-gpu-card
+title: Serveur ai — GPU & CPU
+```
+
+That's it — the card finds the right sensors on its own. See
+[`examples/lovelace_gauges.yaml`](examples/lovelace_gauges.yaml) for the
+individual native `gauge` cards as an alternative.
+
 
 Because each sensor carries the correct `device_class`, Lovelace `gauge` cards
 get sensible ranges automatically — you only override `min`/`max` where you want
@@ -94,8 +129,10 @@ memory %, memory GiB (0–48), power draw W (0–300), power %, temperature
 
 - `coordinator.py` — a `DataUpdateCoordinator` that `GET`s the daemon's `/`
   endpoint on each scan interval and caches the JSON.
-- `sensor.py` — one `CoordinatorEntity` per metric; `native_value` reads the
-  matching JSON field.
+- `sensor.py` — one `CoordinatorEntity` per metric (per GPU + system); each
+  exposes a stable `nvidia_gpu_key` attribute so cards can identify it.
+- `card.py` — ships the bundled Lovelace card into HA's `www/` and registers
+  it as a frontend resource (auto‑managed; never clobbers your file).
 - `config_flow.py` — validates the endpoint during setup so a bad address is
   caught up front.
 - Poll interval defaults to **30 s** (the daemon itself polls `nvidia-smi`
@@ -109,7 +146,9 @@ nvidia_gpu/
   const.py           # domain + defaults
   coordinator.py     # HTTP polling coordinator
   config_flow.py     # UI setup flow (host + port)
-  sensor.py          # the 9 sensors
+  sensor.py          # the GPU + CPU/RAM sensors (per GPU)
+  card.py            # ships + registers the bundled Lovelace card
+  www/nvidia-gpu-card.js  # the custom card (custom:nvidia-gpu-card)
   manifest.json      # integration manifest
   strings.json       # user-facing strings
   translations/en.json
