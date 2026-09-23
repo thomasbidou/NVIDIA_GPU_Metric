@@ -18,32 +18,47 @@
     }
   },
   "sensor": {
-    "gpu_utilization": {
+    "gpu_usage": {
       "name": "GPU usage"
     },
-    "memory_used_pct": {
+    "memory_usage": {
       "name": "Memory usage"
     },
-    "memory_used_gib": {
+    "memory_used": {
       "name": "Memory used"
     },
-    "memory_total_gib": {
+    "memory_total": {
       "name": "Memory total"
     },
-    "power_draw_w": {
+    "power_draw": {
       "name": "Power draw"
     },
-    "power_limit_w": {
+    "power_limit": {
       "name": "Power limit"
     },
-    "power_usage_pct": {
+    "power_usage": {
       "name": "Power usage"
     },
-    "temperature_c": {
+    "temperature": {
       "name": "Temperature"
     },
-    "fan_speed_pct": {
+    "fan_speed": {
       "name": "Fan speed"
+    },
+    "cpu_usage": {
+      "name": "CPU usage"
+    },
+    "cpu_temperature": {
+      "name": "CPU temperature"
+    },
+    "ram_usage": {
+      "name": "RAM usage"
+    },
+    "ram_used": {
+      "name": "RAM used"
+    },
+    "ram_total": {
+      "name": "RAM total"
     }
   }
 }

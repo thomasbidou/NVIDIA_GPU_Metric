@@ -1,22 +1,28 @@
 # Lovelace cards for the NVIDIA GPU Stats integration.
 #
-# The integration creates a device named "NVIDIA RTX 6000 Ada Generation"
-# with 9 sensors. In the UI, pick them by NAME (the card editor's entity
-# dropdown lists them under that device). The exact entity id below is the
-# expected slug — if HA added a suffix (e.g. _2) just re-pick the right one.
+# The integration creates TWO devices from one daemon:
+#   - "NVIDIA RTX 6000 Ada Generation"  (GPU sensors)
+#   - "AMD Ryzen 9 9900X 12-Core Processor"  (CPU + RAM sensors)
 #
-# Ranges you asked for:
+# In the UI, pick entities by NAME (the card editor's entity dropdown lists
+# them under their device). The entity ids below are the expected slugs — if
+# HA added a suffix (e.g. _2) just re-pick the right one in the dropdown.
+#
+# Ranges:
 #   - percent gauges: 0..100
-#   - temperature:     0..90
-#   - memory GiB:      0..48  (your total is 47.988 GiB)
-#   - power W:         0..300 (your power limit is 300 W)
+#   - GPU temperature: 0..90
+#   - CPU temperature: 0..100 (Ryzen can exceed 90 under load)
+#   - GPU memory GiB: 0..48   (47.988 GiB total)
+#   - RAM GiB:         0..64  (60.4 GiB total)
+#   - power W:         0..300 (300 W limit)
 
 type: vertical-stack
-title: GPU — RTX 6000 Ada
+title: "System — GPU + CPU"
 cards:
+  # ============================ GPU ============================
   - type: gauge
     name: GPU usage
-    entity: sensor.nvidia_rtx_6000_ada_generation_gpu_usage
+    entity: sensor.nvidia_rtx_6000_ada_generation
     min: 0
     max: 100
     unit: "%"
@@ -24,7 +30,7 @@ cards:
 
   - type: gauge
     name: Memory usage
-    entity: sensor.nvidia_rtx_6000_ada_generation_memory_usage
+    entity: sensor.nvidia_rtx_6000_ada_generation_2
     min: 0
     max: 100
     unit: "%"
@@ -32,7 +38,7 @@ cards:
 
   - type: gauge
     name: Memory (GiB)
-    entity: sensor.nvidia_rtx_6000_ada_generation_memory_used
+    entity: sensor.nvidia_rtx_6000_ada_generation_3
     min: 0
     max: 48
     unit: "GiB"
@@ -40,7 +46,7 @@ cards:
 
   - type: gauge
     name: Power draw
-    entity: sensor.nvidia_rtx_6000_ada_generation_power_draw
+    entity: sensor.nvidia_rtx_6000_ada_generation_puissance
     min: 0
     max: 300
     unit: "W"
@@ -48,7 +54,7 @@ cards:
 
   - type: gauge
     name: Power usage
-    entity: sensor.nvidia_rtx_6000_ada_generation_power_usage
+    entity: sensor.nvidia_rtx_6000_ada_generation_5
     min: 0
     max: 100
     unit: "%"
@@ -69,8 +75,49 @@ cards:
 
   - type: gauge
     name: Fan
-    entity: sensor.nvidia_rtx_6000_ada_generation_fan_speed
+    entity: sensor.nvidia_rtx_6000_ada_generation_6
     min: 0
     max: 100
     unit: "%"
+    needle: true
+
+  # =========================== CPU ============================
+  - type: markdown
+    content: "<h3>CPU / RAM</h3>"
+
+  - type: gauge
+    name: CPU usage
+    entity: sensor.amd_ryzen_9_9900x_12_core_processor
+    min: 0
+    max: 100
+    unit: "%"
+    needle: true
+
+  - type: gauge
+    name: CPU temperature
+    entity: sensor.amd_ryzen_9_9900x_12_core_processor_temperature
+    min: 0
+    max: 100
+    unit: "°C"
+    needle: true
+    thresholds:
+      - value: 70
+        color: orange
+      - value: 85
+        color: red
+
+  - type: gauge
+    name: RAM usage
+    entity: sensor.amd_ryzen_9_9900x_12_core_processor_2
+    min: 0
+    max: 100
+    unit: "%"
+    needle: true
+
+  - type: gauge
+    name: RAM (GiB)
+    entity: sensor.amd_ryzen_9_9900x_12_core_processor_3
+    min: 0
+    max: 64
+    unit: "GiB"
     needle: true
