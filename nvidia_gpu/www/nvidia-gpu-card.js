@@ -12,8 +12,9 @@
  * barre de progression (pill) colorée, style panneau admin sobre.
  *
  * Config (facultatif) :
- *   - "title"   : titre affiché (défaut vide)
- *   - "entities": liste d'entités à forcer (défaut : auto-détection)
+ *   - "title"    : titre affiché (défaut vide)
+ *   - "section"  : "all" (défaut) | "gpu" | "cpu" — ne montrer qu'une section
+ *   - "entities" : liste d'entités à forcer (défaut : auto-détection)
  */
 (() => {
   "use strict";
@@ -227,14 +228,17 @@
         t.className = "title"; t.textContent = title; root.appendChild(t);
       }
       const groups = this._groups();
-      if (!groups.length) {
+      const section = (this._config && this._config.section) || "all";
+      const shown = groups.filter((g) => section === "all" || (section === "gpu" ? g.isGpu : !g.isGpu));
+      if (!shown.length) {
         const e = document.createElement("div");
         e.className = "empty";
-        e.textContent = "Aucun capteur nvidia_gpu détecté.";
+        e.textContent = "Aucun capteur nvidia_gpu détecté";
+        e.textContent += section === "gpu" ? " (GPU)." : section === "cpu" ? " (CPU)." : ".";
         root.appendChild(e);
         return;
       }
-      for (const g of groups) {
+      for (const g of shown) {
         const dev = document.createElement("div");
         dev.className = "device";
         const dt = document.createElement("div");
@@ -276,13 +280,29 @@
         this._config = { ...this._config, title: input.value || undefined };
         this.dispatchEvent(new CustomEvent("config-changed", { detail: { config: this._config } }));
       };
+      const slabel = document.createElement("label");
+      slabel.style.display = "block"; slabel.style.margin = "12px 0 6px";
+      slabel.textContent = "Section";
+      const select = document.createElement("select");
+      select.style.width = "100%"; select.style.padding = "8px"; select.style.boxSizing = "border-box";
+      for (const [val, txt] of [["all", "GPU + CPU (tout)"], ["gpu", "GPU uniquement"], ["cpu", "CPU / RAM uniquement"]]) {
+        const opt = document.createElement("option");
+        opt.value = val; opt.textContent = txt;
+        if ((this._config.section || "all") === val) opt.selected = true;
+        select.appendChild(opt);
+      }
+      select.onchange = () => {
+        this._config = { ...this._config, section: select.value === "all" ? undefined : select.value };
+        this.dispatchEvent(new CustomEvent("config-changed", { detail: { config: this._config } }));
+      };
       const help = document.createElement("div");
       help.style.marginTop = "10px"; help.style.fontSize = ".85em";
       help.style.color = "var(--secondary-text-color,#666)";
       help.innerHTML = "La carte détecte automatiquement les capteurs de l'intégration " +
         "<b>nvidia_gpu</b> (GPU + CPU/RAM) sur toutes vos machines, et les rend en " +
-        "cartes « valeur + barre ». Le titre est facultatif.";
-      wrap.append(label, input, help);
+        "cartes « valeur + barre » colorées par niveau. Titre et section sont facultatifs — " +
+        "utilisez « CPU / RAM uniquement » pour une carte CPU séparée.";
+      wrap.append(label, input, slabel, select, help);
       this.appendChild(wrap);
     }
   }
@@ -293,7 +313,7 @@
   window.customCards.push({
     type: "nvidia-gpu-card",
     name: "NVIDIA GPU Stats",
-    description: "Métriques GPU + CPU/RAM de l'intégration nvidia_gpu (multi-GPU / multi-serveur).",
+    description: "Métriques GPU + CPU/RAM de l'intégration nvidia_gpu (multi-GPU / multi-serveur, carte GPU ou CPU seule via « section »).",
     preview: true,
     documentationUrl: "https://github.com/thomasbidou/NVIDIA_GPU_Metric",
   });

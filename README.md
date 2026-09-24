@@ -73,6 +73,16 @@ That's it — the card finds the right sensors on its own. See
 [`examples/lovelace_gauges.yaml`](examples/lovelace_gauges.yaml) for the
 individual native `gauge` cards as an alternative.
 
+For a **CPU/RAM-only card** (no GPU section), add `section: cpu`:
+
+```yaml
+type: custom:nvidia-gpu-card
+title: Serveur ai — CPU & RAM
+section: cpu
+```
+
+(`section: gpu` keeps only the GPU section. Omit it for both, the default.)
+
 
 Because each sensor carries the correct `device_class`, Lovelace `gauge` cards
 get sensible ranges automatically — you only override `min`/`max` where you want
