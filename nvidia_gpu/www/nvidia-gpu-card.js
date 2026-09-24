@@ -20,9 +20,22 @@
   if (customElements.get("nvidia-gpu-card")) return;
 
   // ---- palette ----------------------------------------------------------
-  const ACCENT = "#4a7ba6";   // steel blue (default value bar / icon)
-  const WARN   = "#ff9800";   // orange when a threshold is crossed
-  const DANGER = "#f44336";   // red past the danger threshold
+  const C_BLUE   = "#3b82f6";
+  const C_GREEN  = "#22c55e";
+  const C_YELLOW = "#eab308";
+  const C_RED    = "#ef4444";
+  const ACCENT   = "#4a7ba6";   // fallback when a metric has no bands / no value
+
+  // Color scales (bands: [threshold, color], ascending — the last band whose
+  // threshold is <= the value wins). Temperature uses the requested scale:
+  // 0–25 blue, 25–50 green, 50–70 yellow, 70+ red. Percentages mirror it.
+  // Absolute metrics (GiB / W) use the same shape scaled to their max
+  // (≈40 / 65 / 85 % of full).
+  const PCT_BANDS  = [[0, C_BLUE], [25, C_GREEN], [50, C_YELLOW], [70, C_RED]];
+  const TEMP_BANDS = [[0, C_BLUE], [25, C_GREEN], [50, C_YELLOW], [70, C_RED]];
+  const GIB48_BANDS = [[0, C_BLUE], [19, C_GREEN], [31, C_YELLOW], [41, C_RED]];
+  const GIB64_BANDS = [[0, C_BLUE], [26, C_GREEN], [42, C_YELLOW], [54, C_RED]];
+  const W300_BANDS  = [[0, C_BLUE], [120, C_GREEN], [195, C_YELLOW], [255, C_RED]];
   const DOT_GPU = "#4a7ba6";
   const DOT_SYS = "#0ea5b7";
 
@@ -37,19 +50,19 @@
 
   // ---- metric definitions, keyed by nvidia_gpu_key ----------------------
   const GPU_METRICS = [
-    { key: "gpu_utilization_pct", label: "Utilisation",    min: 0, max: 100, unit: "%",   icon: ICONS.activity },
-    { key: "memory_used_pct",     label: "Mémoire",        min: 0, max: 100, unit: "%",   icon: ICONS.memory },
-    { key: "temperature_c",       label: "Température",    min: 0, max: 90,  unit: "°C",  icon: ICONS.thermo, warn: 70, danger: 85 },
-    { key: "power_usage_pct",     label: "Puissance",      min: 0, max: 100, unit: "%",   icon: ICONS.bolt },
-    { key: "fan_speed_pct",       label: "Ventilateur",    min: 0, max: 100, unit: "%",   icon: ICONS.fan },
-    { key: "memory_used_gib",     label: "Mémoire (GiB)",  min: 0, max: 48,  unit: "GiB", icon: ICONS.memory },
-    { key: "power_draw_w",        label: "Consommation",   min: 0, max: 300, unit: "W",   icon: ICONS.bolt },
+    { key: "gpu_utilization_pct", label: "Utilisation",    min: 0, max: 100, unit: "%",   icon: ICONS.activity, bands: PCT_BANDS },
+    { key: "memory_used_pct",     label: "Mémoire",        min: 0, max: 100, unit: "%",   icon: ICONS.memory,   bands: PCT_BANDS },
+    { key: "temperature_c",       label: "Température",    min: 0, max: 90,  unit: "°C",  icon: ICONS.thermo,   bands: TEMP_BANDS },
+    { key: "power_usage_pct",     label: "Puissance",      min: 0, max: 100, unit: "%",   icon: ICONS.bolt,     bands: PCT_BANDS },
+    { key: "fan_speed_pct",       label: "Ventilateur",    min: 0, max: 100, unit: "%",   icon: ICONS.fan,      bands: PCT_BANDS },
+    { key: "memory_used_gib",     label: "Mémoire (GiB)",  min: 0, max: 48,  unit: "GiB", icon: ICONS.memory,   bands: GIB48_BANDS },
+    { key: "power_draw_w",        label: "Consommation",   min: 0, max: 300, unit: "W",   icon: ICONS.bolt,     bands: W300_BANDS },
   ];
   const SYS_METRICS = [
-    { key: "usage_pct",      label: "CPU",        min: 0, max: 100, unit: "%",   icon: ICONS.activity },
-    { key: "temperature_c",  label: "Température",min: 0, max: 100, unit: "°C",  icon: ICONS.thermo, warn: 70, danger: 85 },
-    { key: "ram_used_pct",   label: "RAM",        min: 0, max: 100, unit: "%",   icon: ICONS.memory },
-    { key: "ram_used_gib",   label: "RAM (GiB)",  min: 0, max: 64,  unit: "GiB", icon: ICONS.memory },
+    { key: "usage_pct",      label: "CPU",        min: 0, max: 100, unit: "%",   icon: ICONS.activity, bands: PCT_BANDS },
+    { key: "temperature_c",  label: "Température",min: 0, max: 100, unit: "°C",  icon: ICONS.thermo,   bands: TEMP_BANDS },
+    { key: "ram_used_pct",   label: "RAM",        min: 0, max: 100, unit: "%",   icon: ICONS.memory,   bands: PCT_BANDS },
+    { key: "ram_used_gib",   label: "RAM (GiB)",  min: 0, max: 64,  unit: "GiB", icon: ICONS.memory,   bands: GIB64_BANDS },
   ];
 
   const style = new CSSStyleSheet();
@@ -161,11 +174,13 @@
       const hasValue = s && s.state !== "unknown" && s.state !== "unavailable" && isFinite(raw);
       const frac = hasValue ? Math.max(0, Math.min(1, (raw - spec.min) / (spec.max - spec.min))) : 0;
 
-      // color: severity if set, else neutral accent
+      // color: last band whose threshold is <= the value, else neutral accent
       let color = ACCENT;
-      if (hasValue) {
-        if (spec.danger !== undefined && raw >= spec.danger) color = DANGER;
-        else if (spec.warn !== undefined && raw >= spec.warn) color = WARN;
+      if (hasValue && spec.bands) {
+        color = spec.bands[spec.bands.length - 1][1];
+        for (const [t, c] of spec.bands) {
+          if (raw >= t) color = c;
+        }
       }
 
       const el = document.createElement("div");
@@ -188,6 +203,7 @@
       const val = document.createElement("div");
       val.className = "value";
       val.textContent = hasValue ? (s.state + " " + spec.unit) : ("— " + spec.unit);
+      if (hasValue) val.style.color = color;
       el.appendChild(val);
 
       const track = document.createElement("div");
