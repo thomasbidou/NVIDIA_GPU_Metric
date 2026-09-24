@@ -73,7 +73,21 @@ That's it — the card finds the right sensors on its own. See
 [`examples/lovelace_gauges.yaml`](examples/lovelace_gauges.yaml) for the
 individual native `gauge` cards as an alternative.
 
-For a **CPU/RAM-only card** (no GPU section), add `section: cpu`:
+### GPU-only card
+
+To show only the GPU (no CPU/RAM section), add `section: gpu`:
+
+```yaml
+type: custom:nvidia-gpu-card
+title: Serveur ai — GPU
+section: gpu
+```
+
+![GPU-only card](docs/nvidia-gpu-card-gpu.png)
+
+### CPU/RAM-only card
+
+For a CPU/RAM-only card (no GPU section), add `section: cpu`:
 
 ```yaml
 type: custom:nvidia-gpu-card
@@ -83,7 +97,7 @@ section: cpu
 
 ![CPU/RAM-only card](docs/nvidia-gpu-card-cpu.png)
 
-(`section: gpu` keeps only the GPU section. Omit it for both, the default.)
+(`section: all` — the default — shows both, as in the first card above.)
 
 
 Because each sensor carries the correct `device_class`, Lovelace `gauge` cards
@@ -173,6 +187,7 @@ examples/
   lovelace_gauges.yaml
 docs/
   nvidia-gpu-card.png      # full card (GPU + CPU/RAM)
+  nvidia-gpu-card-gpu.png  # GPU-only card
   nvidia-gpu-card-cpu.png  # CPU/RAM-only card
 ```
 
