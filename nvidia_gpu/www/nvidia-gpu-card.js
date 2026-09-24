@@ -1,63 +1,87 @@
 /*
- * NVIDIA GPU Stats — carte Lovelace maison (GPU + CPU/RAM en une seule vue).
+ * NVIDIA GPU Stats — carte Lovelace maison (GPU + CPU/RAM).
  *
  * Détecte automatiquement les capteurs de l'intégration "nvidia_gpu" via
  * leur attribut "nvidia_gpu_key", sans aucun id d'entité codé en dur.
  * Les capteurs sont groupés par appareil (device) :
- *   - un appareil "GPU" (RTX …)      -> jauges GPU
- *   - un appareil "système" (CPU/RAM) -> jauges CPU / RAM
+ *   - un appareil "GPU" (RTX …)      -> métriques GPU
+ *   - un appareil "système" (CPU/RAM) -> métriques CPU / RAM
  * Plusieurs GPU et plusieurs machines coexistent donc sans conflit.
  *
+ * Rendu : cartes « stat » empilées, chacune = icône + libellé + valeur +
+ * barre de progression (pill) colorée, style panneau admin sobre.
+ *
  * Config (facultatif) :
- *   - "title"   : titre affiché (défaut "Serveur — GPU & CPU")
+ *   - "title"   : titre affiché (défaut vide)
  *   - "entities": liste d'entités à forcer (défaut : auto-détection)
  */
 (() => {
   "use strict";
   if (customElements.get("nvidia-gpu-card")) return;
 
-  // ---- metric definitions, keyed by nvidia_gpu_key -----------------------
-  // "isGpu" marks metrics that belong to a GPU device; the same key name
-  // (temperature_c / *_pct) exists on the system device with a different
-  // meaning, so we classify the device first and only then read metrics.
+  // ---- palette ----------------------------------------------------------
+  const ACCENT = "#4a7ba6";   // steel blue (default value bar / icon)
+  const WARN   = "#ff9800";   // orange when a threshold is crossed
+  const DANGER = "#f44336";   // red past the danger threshold
+  const DOT_GPU = "#4a7ba6";
+  const DOT_SYS = "#0ea5b7";
+
+  // ---- inline icons (24x24, stroked) ------------------------------------
+  const ICONS = {
+    activity: "M3 12h4l3 8 4-16 3 8h4",
+    memory:   "M7 7h10v10H7z M9 7V4M12 7V4M15 7V4 M9 20v-3M12 20v-3M15 20v-3 M7 9H4M7 12H4M7 15H4 M20 9h-3M20 12h-3M20 15h-3",
+    thermo:   "M12 4a2 2 0 0 0-2 2v8.5a4 4 0 1 0 4 0V6a2 2 0 0 0-2-2z",
+    bolt:     "M13 2L4 14h6l-1 8 9-12h-6l1-8z",
+    fan:      "M12 9.5C12 5 15 3 17.5 4 17 7.5 15 9.5 12 9.5z M12 14.5C12 19 9 21 6.5 20 7 16.5 9 14.5 12 14.5z M9.5 12C5 12 3 9 4 6.5 7.5 7 9.5 9 9.5 12z M14.5 12C19 12 21 15 20 17.5 16.5 17 14.5 15 14.5 12z",
+  };
+
+  // ---- metric definitions, keyed by nvidia_gpu_key ----------------------
   const GPU_METRICS = [
-    { key: "gpu_utilization_pct", label: "Utilisation", min: 0, max: 100, unit: "%" },
-    { key: "memory_used_pct",     label: "Mémoire",     min: 0, max: 100, unit: "%" },
-    { key: "power_usage_pct",     label: "Puissance",   min: 0, max: 100, unit: "%" },
-    { key: "fan_speed_pct",       label: "Ventilateur", min: 0, max: 100, unit: "%" },
-    { key: "temperature_c",       label: "Temp. GPU",   min: 0, max: 90,  unit: "°C", warn: 70, danger: 85 },
-    { key: "memory_used_gib",     label: "Mémoire",     min: 0, max: 48,  unit: "GiB" },
-    { key: "power_draw_w",        label: "Consommation",min: 0, max: 300, unit: "W" },
+    { key: "gpu_utilization_pct", label: "Utilisation",    min: 0, max: 100, unit: "%",   icon: ICONS.activity },
+    { key: "memory_used_pct",     label: "Mémoire",        min: 0, max: 100, unit: "%",   icon: ICONS.memory },
+    { key: "temperature_c",       label: "Température",    min: 0, max: 90,  unit: "°C",  icon: ICONS.thermo, warn: 70, danger: 85 },
+    { key: "power_usage_pct",     label: "Puissance",      min: 0, max: 100, unit: "%",   icon: ICONS.bolt },
+    { key: "fan_speed_pct",       label: "Ventilateur",    min: 0, max: 100, unit: "%",   icon: ICONS.fan },
+    { key: "memory_used_gib",     label: "Mémoire (GiB)",  min: 0, max: 48,  unit: "GiB", icon: ICONS.memory },
+    { key: "power_draw_w",        label: "Consommation",   min: 0, max: 300, unit: "W",   icon: ICONS.bolt },
   ];
   const SYS_METRICS = [
-    { key: "usage_pct",      label: "CPU",      min: 0, max: 100, unit: "%" },
-    { key: "ram_used_pct",   label: "RAM",      min: 0, max: 100, unit: "%" },
-    { key: "temperature_c",  label: "Temp. CPU",min: 0, max: 100, unit: "°C", warn: 70, danger: 85 },
-    { key: "ram_used_gib",   label: "RAM",      min: 0, max: 64,  unit: "GiB" },
+    { key: "usage_pct",      label: "CPU",        min: 0, max: 100, unit: "%",   icon: ICONS.activity },
+    { key: "temperature_c",  label: "Température",min: 0, max: 100, unit: "°C",  icon: ICONS.thermo, warn: 70, danger: 85 },
+    { key: "ram_used_pct",   label: "RAM",        min: 0, max: 100, unit: "%",   icon: ICONS.memory },
+    { key: "ram_used_gib",   label: "RAM (GiB)",  min: 0, max: 64,  unit: "GiB", icon: ICONS.memory },
   ];
 
   const style = new CSSStyleSheet();
   style.replaceSync(`
     :host { display: block; }
     .wrap { padding: 4px 2px; }
-    .title { font-size: 1.1em; font-weight: 600; margin: 0 0 14px; color: var(--primary-text-color,#111); }
+    .title { font-size: 1.1em; font-weight: 600; margin: 0 0 14px;
+             color: var(--primary-text-color,#1f2937); }
     .device { margin-bottom: 22px; }
     .device:last-child { margin-bottom: 2px; }
-    .dtitle { font-size: .92em; font-weight: 600; color: var(--secondary-text-color,#555);
+    .dtitle { font-size: .9em; font-weight: 600;
+              color: var(--secondary-text-color,#475569);
               margin: 0 0 10px; display: flex; align-items: center; gap: 8px; }
     .dot { width: 8px; height: 8px; border-radius: 50%; flex: 0 0 auto; }
-    .dot.gpu { background: #76b900; }
-    .dot.sys { background: #03a9f4; }
-    .grid { display: flex; flex-wrap: wrap; gap: 10px; }
-    .gauge { flex: 1 1 150px; min-width: 130px; max-width: 230px; text-align: center;
-             background: var(--card-background-color,#fff); border-radius: 12px;
-             padding: 10px 10px 12px; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
-    .gauge svg { width: 100%; height: auto; display: block; }
-    .glabel { font-size: .78em; color: var(--secondary-text-color,#666); margin-top: 2px; }
-    .empty { padding: 24px; text-align: center; color: var(--secondary-text-color,#888); font-size: .9em; }
-  `);
+    .grid { display: flex; flex-direction: column; gap: 12px; }
 
-  const SVGNS = "http://www.w3.org/2000/svg";
+    .card { background: var(--card-background-color,#fff);
+            border: 1px solid var(--divider-color,#e5e7eb);
+            border-radius: 10px; padding: 14px 16px 16px; }
+    .head { display: flex; align-items: center; gap: 10px; }
+    .icon { width: 20px; height: 20px; flex: 0 0 auto; }
+    .icon svg { width: 100%; height: 100%; display: block; }
+    .tlabel { font-weight: 600; color: var(--primary-text-color,#1f2937); font-size: .95em; }
+    .value { color: var(--secondary-text-color,#6b7280); font-size: .9em;
+             margin: 3px 0 12px 30px; }
+    .track { height: 14px; border-radius: 999px; overflow: hidden;
+             background: rgba(74,123,166,.16); }
+    .fill { height: 100%; border-radius: 999px; transition: width .45s ease; }
+
+    .empty { padding: 24px; text-align: center;
+             color: var(--secondary-text-color,#888); font-size: .9em; }
+  `);
 
   class NvCard extends HTMLElement {
     constructor() {
@@ -72,44 +96,40 @@
     }
     set hass(v) {
       this._hass = v;
-      // Render once config is ready (Lovelace may set hass before or after
-      // setConfig, so re-render on whichever arrives second).
       if (this._config) this._render();
     }
     get hass() { return this._hass; }
-    // Lovelace card API — the frontend calls these methods (not the .config property).
     setConfig(cfg) {
       this._config = cfg || { type: "custom:nvidia-gpu-card" };
       if (this._hass) this._render();
     }
     getConfig() { return this._config; }
-    getCardSize() { return 5; }
-    // Keep the .config property in sync (harmless if the frontend uses it).
+    getCardSize() { return 16; }
     set config(c) { this.setConfig(c); }
     get config() { return this._config; }
     static getStubConfig() { return { title: "Serveur — GPU & CPU" }; }
 
     _num(id) {
-      const s = this._hass.states[id];
+      const s = this._hass && this._hass.states[id];
       const v = s && s.state === "unknown" ? NaN : parseFloat(s.state);
       return v;
     }
     _key(id) {
-      const s = this._hass.states[id];
+      const s = this._hass && this._hass.states[id];
       return s && s.attributes ? s.attributes.nvidia_gpu_key : undefined;
     }
     _device(id) {
-      const s = this._hass.states[id];
+      const s = this._hass && this._hass.states[id];
       return s && s.attributes ? s.attributes.device_id : undefined;
     }
     _friendly(id) {
-      const s = this._hass.states[id];
+      const s = this._hass && this._hass.states[id];
       return s && s.attributes ? s.attributes.friendly_name : id;
     }
 
     // Group this integration's sensors by device.
     _groups() {
-      const states = this._hass.states || {};
+      const states = (this._hass && this._hass.states) || {};
       let ids = (this._config && this._config.entities) || [];
       if (!ids.length) {
         ids = Object.keys(states).filter(
@@ -131,71 +151,54 @@
         const title = this._friendly(Object.values(map)[0]) || (isGpu ? "GPU" : "CPU");
         out.push({ isGpu, title, map, metrics: isGpu ? GPU_METRICS : SYS_METRICS });
       }
-      // GPU devices first, then system; stable by title.
       out.sort((a, b) => (a.isGpu === b.isGpu ? a.title.localeCompare(b.title) : (a.isGpu ? -1 : 1)));
       return out;
     }
 
-    _gauge(spec, entityId) {
-      const raw = this._num(entityId);
-      const frac = isFinite(raw) ? Math.max(0, Math.min(1, (raw - spec.min) / (spec.max - spec.min))) : 0;
-      const hasValue = isFinite(raw);
-      // colour: severity if set, else neutral
-      let color = "#76b900";
+    _card(spec, entityId) {
+      const s = this._hass && this._hass.states[entityId];
+      const raw = s ? parseFloat(s.state) : NaN;
+      const hasValue = s && s.state !== "unknown" && s.state !== "unavailable" && isFinite(raw);
+      const frac = hasValue ? Math.max(0, Math.min(1, (raw - spec.min) / (spec.max - spec.min))) : 0;
+
+      // color: severity if set, else neutral accent
+      let color = ACCENT;
       if (hasValue) {
-        if (spec.danger !== undefined && raw >= spec.danger) color = "#f44336";
-        else if (spec.warn !== undefined && raw >= spec.warn) color = "#ff9800";
+        if (spec.danger !== undefined && raw >= spec.danger) color = DANGER;
+        else if (spec.warn !== undefined && raw >= spec.warn) color = WARN;
       }
+
       const el = document.createElement("div");
-      el.className = "gauge";
+      el.className = "card";
 
-      // semicircle geometry
-      // Sweep flag = 0: from the right-hand start point this draws the arc on
-      // the UPPER side of the circle (a normal dial). Sweep=1 would swing it to
-      // the bottom, off the viewBox, leaving only the rounded line-caps visible
-      // (the "grey blob + stray green stroke" bug).
-      const W = 160, H = 96, cx = W / 2, cy = H - 14, r = 62, sw = 16;
-      const arc = (from, to) => {
-        const a0 = Math.PI * (1 - from), a1 = Math.PI * (1 - to);
-        const x0 = cx - r * Math.cos(a0), y0 = cy - r * Math.sin(a0);
-        const x1 = cx - r * Math.cos(a1), y1 = cy - r * Math.sin(a1);
-        return `M ${x0} ${y0} A ${r} ${r} 0 0 0 ${x1} ${y1}`;
-      };
-      const track = document.createElementNS(SVGNS, "path");
-      track.setAttribute("d", arc(0, 1));
-      track.setAttribute("fill", "none");
-      track.setAttribute("stroke", "rgba(0,0,0,.10)");
-      track.setAttribute("stroke-width", sw);
-      track.setAttribute("stroke-linecap", "round");
-      const fill = document.createElementNS(SVGNS, "path");
-      const d = frac > 0 ? arc(0, frac) : "M 1 1";
-      fill.setAttribute("d", d);
-      fill.setAttribute("fill", "none");
-      fill.setAttribute("stroke", hasValue ? color : "rgba(0,0,0,.25)");
-      fill.setAttribute("stroke-width", sw);
-      fill.setAttribute("stroke-linecap", "round");
+      const head = document.createElement("div");
+      head.className = "head";
+      const icon = document.createElement("span");
+      icon.className = "icon";
+      icon.style.color = color;
+      icon.innerHTML =
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" ' +
+        'stroke-linecap="round" stroke-linejoin="round"><path d="' + spec.icon + '"/></svg>';
+      const tlab = document.createElement("span");
+      tlab.className = "tlabel";
+      tlab.textContent = spec.label;
+      head.append(icon, tlab);
+      el.appendChild(head);
 
-      const val = document.createElementNS(SVGNS, "text");
-      val.setAttribute("x", cx); val.setAttribute("y", cy - 12);
-      val.setAttribute("text-anchor", "middle");
-      val.setAttribute("font-size", "26"); val.setAttribute("font-weight", "600");
-      val.setAttribute("fill", hasValue ? "var(--primary-text-color,#111)" : "rgba(0,0,0,.35)");
-      val.textContent = hasValue ? (Math.round(raw * 10) / 10) : "—";
-      const unit = document.createElementNS(SVGNS, "text");
-      unit.setAttribute("x", cx); unit.setAttribute("y", cy - 1);
-      unit.setAttribute("text-anchor", "middle"); unit.setAttribute("font-size", "12");
-      unit.setAttribute("fill", "var(--secondary-text-color,#777)");
-      unit.textContent = spec.unit;
+      const val = document.createElement("div");
+      val.className = "value";
+      val.textContent = hasValue ? (s.state + " " + spec.unit) : ("— " + spec.unit);
+      el.appendChild(val);
 
-      const svg = document.createElementNS(SVGNS, "svg");
-      svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
-      svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
-      svg.append(track, fill, val, unit);
-      el.appendChild(svg);
-      const lab = document.createElement("div");
-      lab.className = "glabel";
-      lab.textContent = spec.label;
-      el.appendChild(lab);
+      const track = document.createElement("div");
+      track.className = "track";
+      const fill = document.createElement("div");
+      fill.className = "fill";
+      fill.style.width = (frac * 100).toFixed(1) + "%";
+      fill.style.background = color;
+      track.appendChild(fill);
+      el.appendChild(track);
+
       return el;
     }
 
@@ -221,7 +224,8 @@
         const dt = document.createElement("div");
         dt.className = "dtitle";
         const dot = document.createElement("span");
-        dot.className = "dot " + (g.isGpu ? "gpu" : "sys");
+        dot.className = "dot";
+        dot.style.background = g.isGpu ? DOT_GPU : DOT_SYS;
         dt.appendChild(dot);
         const dtxt = document.createElement("span");
         dtxt.textContent = g.title;
@@ -231,7 +235,7 @@
         grid.className = "grid";
         for (const spec of g.metrics) {
           const id = g.map[spec.key];
-          if (id) grid.appendChild(this._gauge(spec, id));
+          if (id) grid.appendChild(this._card(spec, id));
         }
         dev.appendChild(grid);
         root.appendChild(dev);
@@ -260,8 +264,8 @@
       help.style.marginTop = "10px"; help.style.fontSize = ".85em";
       help.style.color = "var(--secondary-text-color,#666)";
       help.innerHTML = "La carte détecte automatiquement les capteurs de l'intégration " +
-        "<b>nvidia_gpu</b> (GPU + CPU/RAM) sur toutes vos machines. " +
-        "Le titre est facultatif.";
+        "<b>nvidia_gpu</b> (GPU + CPU/RAM) sur toutes vos machines, et les rend en " +
+        "cartes « valeur + barre ». Le titre est facultatif.";
       wrap.append(label, input, help);
       this.appendChild(wrap);
     }
@@ -273,7 +277,7 @@
   window.customCards.push({
     type: "nvidia-gpu-card",
     name: "NVIDIA GPU Stats",
-    description: "Jauges GPU + CPU/RAM de l'intégration nvidia_gpu (multi-GPU / multi-serveur).",
+    description: "Métriques GPU + CPU/RAM de l'intégration nvidia_gpu (multi-GPU / multi-serveur).",
     preview: true,
     documentationUrl: "https://github.com/thomasbidou/NVIDIA_GPU_Metric",
   });
