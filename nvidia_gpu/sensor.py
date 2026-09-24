@@ -195,7 +195,8 @@ async def async_setup_entry(hass: HomeAssistant, entry, async_add_entities) -> N
         entities.extend(
             StatSensor(coordinator, device, desc,
                        source=("gpus", idx) if "gpus" in data else (),
-                       unique_id=f"{uuid}_{desc.key}", section="gpu")
+                       unique_id=f"{uuid}_{desc.key}", section="gpu",
+                       device_key=uuid)
             for desc in GPU_SENSORS
         )
 
@@ -210,7 +211,8 @@ async def async_setup_entry(hass: HomeAssistant, entry, async_add_entities) -> N
     )
     entities.extend(
         StatSensor(coordinator, sys_device, desc, source=("cpu",),
-                   unique_id=f"{sys_id}_sys_{desc.key}", section="cpu")
+                   unique_id=f"{sys_id}_sys_{desc.key}", section="cpu",
+                   device_key=sys_id)
         for desc in SYSTEM_SENSORS
     )
 
@@ -230,6 +232,7 @@ class StatSensor(CoordinatorEntity[NvidiaGpuCoordinator], SensorEntity):
         source: tuple[str, ...],
         unique_id: str,
         section: str,
+        device_key: str,
     ) -> None:
         super().__init__(coordinator)
         self.entity_description = description
@@ -239,6 +242,7 @@ class StatSensor(CoordinatorEntity[NvidiaGpuCoordinator], SensorEntity):
         self._attr_name = description.name
         self._source = source
         self._section = section
+        self._device_key = device_key
         self._attr_unique_id = unique_id
         self._attr_device_info = device_info
 
@@ -252,8 +256,11 @@ class StatSensor(CoordinatorEntity[NvidiaGpuCoordinator], SensorEntity):
         # identify each sensor by role (independent of the localized
         # display name), plus which section it belongs to (gpu / cpu) so
         # the card can group sensors without relying on attributes.device_id
-        # (which HA does not surface on state objects).
+        # (which HA does not surface on state objects), plus a stable
+        # per-device key (GPU uuid / box id) so multiple GPUs stay separate
+        # groups in the card.
         return {
             "nvidia_gpu_key": self.entity_description.key,
             "nvidia_gpu_section": self._section,
+            "nvidia_gpu_device": self._device_key,
         }

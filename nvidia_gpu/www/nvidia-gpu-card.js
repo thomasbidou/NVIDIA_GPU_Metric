@@ -138,7 +138,7 @@
     }
     _device(id) {
       const s = this._hass && this._hass.states[id];
-      return s && s.attributes ? s.attributes.device_id : undefined;
+      return s && s.attributes ? (s.attributes.nvidia_gpu_device || s.attributes.device_id) : undefined;
     }
     _friendly(id) {
       const s = this._hass && this._hass.states[id];
