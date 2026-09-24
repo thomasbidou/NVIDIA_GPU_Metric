@@ -195,7 +195,7 @@ async def async_setup_entry(hass: HomeAssistant, entry, async_add_entities) -> N
         entities.extend(
             StatSensor(coordinator, device, desc,
                        source=("gpus", idx) if "gpus" in data else (),
-                       unique_id=f"{uuid}_{desc.key}")
+                       unique_id=f"{uuid}_{desc.key}", section="gpu")
             for desc in GPU_SENSORS
         )
 
@@ -210,7 +210,7 @@ async def async_setup_entry(hass: HomeAssistant, entry, async_add_entities) -> N
     )
     entities.extend(
         StatSensor(coordinator, sys_device, desc, source=("cpu",),
-                   unique_id=f"{sys_id}_sys_{desc.key}")
+                   unique_id=f"{sys_id}_sys_{desc.key}", section="cpu")
         for desc in SYSTEM_SENSORS
     )
 
@@ -229,6 +229,7 @@ class StatSensor(CoordinatorEntity[NvidiaGpuCoordinator], SensorEntity):
         description: SensorEntityDescription,
         source: tuple[str, ...],
         unique_id: str,
+        section: str,
     ) -> None:
         super().__init__(coordinator)
         self.entity_description = description
@@ -237,6 +238,7 @@ class StatSensor(CoordinatorEntity[NvidiaGpuCoordinator], SensorEntity):
         # proven pattern — cf. other custom integrations on this HA).
         self._attr_name = description.name
         self._source = source
+        self._section = section
         self._attr_unique_id = unique_id
         self._attr_device_info = device_info
 
@@ -248,7 +250,10 @@ class StatSensor(CoordinatorEntity[NvidiaGpuCoordinator], SensorEntity):
     def extra_state_attributes(self):
         # Expose the stable metric key so the bundled Lovelace card can
         # identify each sensor by role (independent of the localized
-        # display name). The card groups by device_id first (GPU vs system),
-        # then matches on this key, so "temperature_c" means GPU temp on the
-        # GPU device and CPU temp on the system device.
-        return {"nvidia_gpu_key": self.entity_description.key}
+        # display name), plus which section it belongs to (gpu / cpu) so
+        # the card can group sensors without relying on attributes.device_id
+        # (which HA does not surface on state objects).
+        return {
+            "nvidia_gpu_key": self.entity_description.key,
+            "nvidia_gpu_section": self._section,
+        }

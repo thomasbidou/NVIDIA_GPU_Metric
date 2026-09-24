@@ -132,6 +132,10 @@
       const s = this._hass && this._hass.states[id];
       return s && s.attributes ? s.attributes.nvidia_gpu_key : undefined;
     }
+    _section(id) {
+      const s = this._hass && this._hass.states[id];
+      return s && s.attributes ? s.attributes.nvidia_gpu_section : undefined;
+    }
     _device(id) {
       const s = this._hass && this._hass.states[id];
       return s && s.attributes ? s.attributes.device_id : undefined;
@@ -141,7 +145,11 @@
       return s && s.attributes ? s.attributes.friendly_name : id;
     }
 
-    // Group this integration's sensors by device.
+    // Group this integration's sensors by (section, device).
+    // Preferred: the "nvidia_gpu_section" attribute the sensors expose (HA
+    // does not put device_id on state objects, so grouping must not rely on
+    // that alone). Fallback for sensors without the attribute (old
+    // sensor.py): group by device and classify by which keys are present.
     _groups() {
       const states = (this._hass && this._hass.states) || {};
       let ids = (this._config && this._config.entities) || [];
@@ -150,20 +158,36 @@
           (id) => id.startsWith("sensor.") && this._key(id) !== undefined
         );
       }
-      const byDevice = new Map();
-      for (const id of ids) {
-        const k = this._key(id);
-        if (k === undefined) continue;
-        const dev = this._device(id) || "_gpu";
-        if (!byDevice.has(dev)) byDevice.set(dev, {});
-        byDevice.get(dev)[k] = id;
-      }
-      // Classify each group: GPU if it has a GPU-usage metric, else system.
+      const valid = ids.filter((id) => this._key(id) !== undefined);
       const out = [];
-      for (const [dev, map] of byDevice.entries()) {
-        const isGpu = "gpu_utilization_pct" in map;
-        const title = this._friendly(Object.values(map)[0]) || (isGpu ? "GPU" : "CPU");
-        out.push({ isGpu, title, map, metrics: isGpu ? GPU_METRICS : SYS_METRICS });
+      if (valid.some((id) => this._section(id) !== undefined)) {
+        // ---- new path: explicit section attribute ----
+        const byGroup = new Map();
+        for (const id of valid) {
+          const section = this._section(id);
+          const dev = this._device(id) || "_gpu";
+          const gkey = section + "||" + dev;
+          if (!byGroup.has(gkey)) byGroup.set(gkey, { section, firstId: id, map: {} });
+          byGroup.get(gkey).map[this._key(id)] = id;
+        }
+        for (const g of byGroup.values()) {
+          const isGpu = g.section !== "cpu";
+          out.push({ isGpu, title: this._friendly(g.firstId) || (isGpu ? "GPU" : "CPU"),
+                     map: g.map, metrics: isGpu ? GPU_METRICS : SYS_METRICS });
+        }
+      } else {
+        // ---- legacy path: no section attribute, classify by keys ----
+        const byDevice = new Map();
+        for (const id of valid) {
+          const dev = this._device(id) || "_gpu";
+          if (!byDevice.has(dev)) byDevice.set(dev, { firstId: id, map: {} });
+          byDevice.get(dev).map[this._key(id)] = id;
+        }
+        for (const g of byDevice.values()) {
+          const isGpu = "gpu_utilization_pct" in g.map;
+          out.push({ isGpu, title: this._friendly(g.firstId) || (isGpu ? "GPU" : "CPU"),
+                     map: g.map, metrics: isGpu ? GPU_METRICS : SYS_METRICS });
+        }
       }
       out.sort((a, b) => (a.isGpu === b.isGpu ? a.title.localeCompare(b.title) : (a.isGpu ? -1 : 1)));
       return out;
