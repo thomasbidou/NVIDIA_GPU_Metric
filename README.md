@@ -52,10 +52,15 @@ On the system device (the box's CPU + RAM):
 
 The integration ships a ready‑made Lovelace card —
 `custom:nvidia-gpu-card` — that shows the GPU and the CPU/RAM in **one card**,
-grouped by device, with SVG gauges. It's installed automatically alongside the
-integration (no manual resource needed) and **auto‑detects your sensors by
-their `nvidia_gpu_key` attribute**, so it works on any box and any number of
-GPUs without you hard‑coding entity IDs.
+grouped by device, as a clean list of bar cards. Each metric shows an icon,
+its name, its value, and a progress bar whose color reflects the level
+(blue → green → yellow → red as the value climbs; e.g. temperature: 0–25 °C
+blue, 25–50 green, 50–70 yellow, 70+ red). It's installed automatically
+alongside the integration (no manual resource needed) and **auto‑detects your
+sensors by their `nvidia_gpu_key` attribute**, so it works on any box and any
+number of GPUs without you hard‑coding entity IDs.
+
+![NVIDIA GPU Stats card](docs/nvidia-gpu-card.png)
 
 To use it, drop this into a view:
 
@@ -154,6 +159,8 @@ nvidia_gpu/
   translations/en.json
 examples/
   lovelace_gauges.yaml
+docs/
+  nvidia-gpu-card.png
 ```
 
 ## Troubleshooting
