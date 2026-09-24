@@ -81,6 +81,8 @@ title: Serveur ai — CPU & RAM
 section: cpu
 ```
 
+![CPU/RAM-only card](docs/nvidia-gpu-card-cpu.png)
+
 (`section: gpu` keeps only the GPU section. Omit it for both, the default.)
 
 
@@ -170,7 +172,8 @@ nvidia_gpu/
 examples/
   lovelace_gauges.yaml
 docs/
-  nvidia-gpu-card.png
+  nvidia-gpu-card.png      # full card (GPU + CPU/RAM)
+  nvidia-gpu-card-cpu.png  # CPU/RAM-only card
 ```
 
 ## Troubleshooting
