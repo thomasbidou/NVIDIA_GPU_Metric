@@ -150,13 +150,16 @@
       el.className = "gauge";
 
       // semicircle geometry
+      // Sweep flag = 0: from the right-hand start point this draws the arc on
+      // the UPPER side of the circle (a normal dial). Sweep=1 would swing it to
+      // the bottom, off the viewBox, leaving only the rounded line-caps visible
+      // (the "grey blob + stray green stroke" bug).
       const W = 160, H = 96, cx = W / 2, cy = H - 14, r = 62, sw = 16;
-      const path = document.createElementNS(SVGNS, "path");
       const arc = (from, to) => {
         const a0 = Math.PI * (1 - from), a1 = Math.PI * (1 - to);
         const x0 = cx - r * Math.cos(a0), y0 = cy - r * Math.sin(a0);
         const x1 = cx - r * Math.cos(a1), y1 = cy - r * Math.sin(a1);
-        return `M ${x0} ${y0} A ${r} ${r} 0 0 1 ${x1} ${y1}`;
+        return `M ${x0} ${y0} A ${r} ${r} 0 0 0 ${x1} ${y1}`;
       };
       const track = document.createElementNS(SVGNS, "path");
       track.setAttribute("d", arc(0, 1));
