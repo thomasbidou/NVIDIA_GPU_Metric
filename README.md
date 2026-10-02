@@ -201,6 +201,12 @@ docs/
 - **Sensors show `unavailable`** → the daemon is up but `nvidia-smi` failed;
   check `nvidia-smi` on the GPU box and the daemon's logs.
 
+## Disclaimer
+
+These programs were developed **entirely with AI assistance** (Hermes agent /
+language models). The code is provided **as-is, without warranty** — review it
+before running it in production.
+
 ## License
 
 MIT.
