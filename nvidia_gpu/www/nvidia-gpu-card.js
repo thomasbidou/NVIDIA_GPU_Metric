@@ -66,8 +66,7 @@
     { key: "ram_used_gib",   label: "RAM (GiB)",  min: 0, max: 64,  unit: "GiB", icon: ICONS.memory,   bands: GIB64_BANDS },
   ];
 
-  const style = new CSSStyleSheet();
-  style.replaceSync(`
+  const STYLE_CSS = `
     :host { display: block; }
     .wrap { padding: 4px 2px; }
     .title { font-size: 1.1em; font-weight: 600; margin: 0 0 14px;
@@ -95,7 +94,7 @@
 
     .empty { padding: 24px; text-align: center;
              color: var(--secondary-text-color,#888); font-size: .9em; }
-  `);
+  `;
 
   class NvCard extends HTMLElement {
     constructor() {
@@ -103,7 +102,9 @@
       this._hass = null;
       this._config = { type: "custom:nvidia-gpu-card" };
       const root = this.attachShadow({ mode: "open" });
-      root.adoptedStyleSheets = [style];
+      const st = document.createElement("style");
+      st.textContent = STYLE_CSS;
+      root.appendChild(st);
       this._root = document.createElement("div");
       this._root.className = "wrap";
       root.appendChild(this._root);

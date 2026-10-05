@@ -162,6 +162,29 @@ async def async_register_card(hass: HomeAssistant) -> bool:
         if not already:
             await resources.async_create_item({"url": vurl, "res_type": "module"})
             _LOGGER.info("nvidia_gpu: created Lovelace resource %s", vurl)
+        else:
+            # A resource with the same base URL already exists. If its
+            # version query string is stale (file content changed on disk),
+            # refresh it so clients (Firefox / Android WebView, which cache
+            # aggressively) re-fetch the new bundle instead of serving the
+            # cached copy.
+            for i in items:
+                iurl = (
+                    getattr(i, "url", None)
+                    or (i.get("url") if isinstance(i, dict) else "")
+                    or ""
+                )
+                if _url_base(iurl) == base and iurl != vurl:
+                    new_item = dict(i) if isinstance(i, dict) else None
+                    if new_item is not None:
+                        new_item["url"] = vurl
+                        iid = new_item.get("id")
+                        if new_item.pop("id", None) is not None:
+                            await resources.async_update_item(iid, new_item)
+                            _LOGGER.info(
+                                "nvidia_gpu: refreshed resource version %s", vurl
+                            )
+                    break
     except Exception:  # noqa: BLE001
         _LOGGER.warning(
             "nvidia_gpu: could not create Lovelace resource; card still loads "
