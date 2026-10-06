@@ -332,8 +332,36 @@
     }
   }
 
-  customElements.define("nvidia-gpu-card", NvCard);
-  customElements.define("nvidia-gpu-card-editor", NvCardEditor);
+  // HA 2026.8+ ships the scoped-custom-element-registry polyfill, which
+  // replaces window.customElements during boot. If this resource evaluates
+  // before the swap (cold-load race), our elements register into the native
+  // registry, which the polyfill's get()/whenDefined() then ignore — HA
+  // times out (~2 s) and the card renders "Configuration error"
+  // (home-assistant/frontend#52960). Re-defining through whichever registry
+  // has won self-heals: HA's error cards rebuild on whenDefined.
+  const HEAL_FALLBACK_MS = 5000;
+  const heal = (name, ctor, via) => {
+    if (customElements.get(name)) return;
+    try {
+      customElements.define(name, ctor);
+      console.info(`nvidia-gpu-card: re-defined ${name} after customElements registry swap, caught by ${via} (frontend#52960)`);
+    } catch (e) {
+      console.warn(`nvidia-gpu-card: re-defining ${name} after registry swap failed (${via})`, e);
+    }
+  };
+  const defineElement = (name, ctor) => {
+    const registryAtLoad = customElements;
+    if (!registryAtLoad.get(name)) registryAtLoad.define(name, ctor);
+    try {
+      registryAtLoad.whenDefined("home-assistant")
+        .then(() => heal(name, ctor, "ha-boot signal"))
+        .catch(() => {});
+    } catch (e) { /* older registries without whenDefined — timer still heals */ }
+    setTimeout(() => heal(name, ctor, "fallback timer"), HEAL_FALLBACK_MS);
+  };
+
+  defineElement("nvidia-gpu-card", NvCard);
+  defineElement("nvidia-gpu-card-editor", NvCardEditor);
   window.customCards = window.customCards || [];
   window.customCards.push({
     type: "nvidia-gpu-card",

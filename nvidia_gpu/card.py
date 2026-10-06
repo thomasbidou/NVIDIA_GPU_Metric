@@ -175,15 +175,15 @@ async def async_register_card(hass: HomeAssistant) -> bool:
                     or ""
                 )
                 if _url_base(iurl) == base and iurl != vurl:
-                    new_item = dict(i) if isinstance(i, dict) else None
-                    if new_item is not None:
-                        new_item["url"] = vurl
-                        iid = new_item.get("id")
-                        if new_item.pop("id", None) is not None:
-                            await resources.async_update_item(iid, new_item)
-                            _LOGGER.info(
-                                "nvidia_gpu: refreshed resource version %s", vurl
-                            )
+                    # async_update_item(item_id, updates) takes a *partial* dict
+                    # — passing the whole serialized item (id included) is
+                    # wrong and used to be a no-op for object items.
+                    iid = getattr(i, "id", None) or (i.get("id") if isinstance(i, dict) else None)
+                    if iid is not None:
+                        await resources.async_update_item(iid, {"url": vurl})
+                        _LOGGER.info(
+                            "nvidia_gpu: refreshed resource version %s", vurl
+                        )
                     break
     except Exception:  # noqa: BLE001
         _LOGGER.warning(
