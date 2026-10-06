@@ -103,7 +103,12 @@ section: cpu
 Firefox, Safari — **and the Android Home Assistant app**. It deliberately avoids
 *constructable stylesheets* (an API missing from Firefox < 101 and Android
 WebView < 14, which made `custom element` registration fail) and uses a classic
-`<style>` tag in the shadow DOM. If you update `nvidia-gpu-card.js` by hand,
+`<style>` tag in the shadow DOM. Since HA 2026.8 the frontend replaces
+`window.customElements` at boot (the `scoped-custom-element-registry` polyfill):
+the card re-registers itself into the winning registry automatically
+(self-healing `defineElement`) so it never gets stuck as a "Configuration
+error" when the module loads before HA finishes booting
+(home-assistant/frontend#52960). If you update `nvidia-gpu-card.js` by hand,
 **bump the `?v=` cache-buster** on the Lovelace resource too (HA caches `/local/`
 for ~31 days) — the integration now refreshes it automatically at boot.
 
